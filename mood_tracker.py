@@ -8,7 +8,6 @@ Original file is located at
 """
 
 # STEP 1: Install required packages (run this once)
-!pip install streamlit openpyxl
 
 # STEP 2: Save the Streamlit app code into a Python (.py) file
 mood_tracker_code = """
