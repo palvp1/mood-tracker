@@ -1,104 +1,72 @@
 
 import streamlit as st
 import pandas as pd
-import datetime
+from datetime import date, datetime
 import os
 
-# ======================== #
-#        CONSTANTS         #
-# ======================== #
+st.set_page_config(page_title="Daily Mood Tracker", layout="centered")
 
-FILE_PATH = "mood_journal.xlsx"
-COLUMNS = ["Date", "Mood", "Journal"]
-MOODS = {
-    "😊 Happy": "Happy",
-    "😐 Neutral": "Neutral",
-    "😔 Sad": "Sad",
-    "😤 Stressed": "Stressed",
-    "😴 Tired": "Tired",
-    "😄 Excited": "Excited",
-}
+# Title
+st.markdown("<h1 style='text-align: center; color: #43A047;'>🌈 Daily Mood Tracker with Emoji & Journal</h1>", unsafe_allow_html=True)
 
-# ======================== #
-#      DATA FUNCTIONS      #
-# ======================== #
+# Layout: Date and Mood Selection
+col1, col2 = st.columns(2)
 
-def load_data():
-    if os.path.exists(FILE_PATH):
-        try:
-            df = pd.read_excel(FILE_PATH)
-            df["Date"] = pd.to_datetime(df["Date"]).dt.date  # Ensure Date is clean
-            return df
-        except Exception as e:
-            st.error(f"Error reading Excel file: {e}")
-            return pd.DataFrame(columns=COLUMNS)
-    else:
-        return pd.DataFrame(columns=COLUMNS)
+with col1:
+    selected_date = st.date_input("📅 Select the Date", date.today())
 
-def save_data(df):
-    try:
-        df.to_excel(FILE_PATH, index=False)
-    except Exception as e:
-        st.error(f"Failed to save data: {e}")
+with col2:
+    mood = st.selectbox(
+        "😊 How are you feeling?",
+        ["😁 Very Happy", "🙂 Good", "😐 Okay", "😔 Sad", "😡 Angry"]
+    )
 
-def already_logged_today(df):
-    today = datetime.date.today()
-    return today in df["Date"].values
+# Mood rating slider with emoji
+emoji_rating = st.slider("🔢 Rate Your Mood", 1, 5, 3)
+emoji_display = ["😭", "😞", "😐", "😊", "🤩"][emoji_rating - 1]
+st.markdown(f"### Your Mood Rating: {emoji_display}")
 
-def add_new_entry(df, mood, journal):
-    new_entry = {
-        "Date": datetime.date.today(),
-        "Mood": mood,
-        "Journal": journal.strip()
+# Journal Entry
+journal = st.text_area("📝 Write about your day...", height=150, placeholder="Today I felt...")
+
+# Mood-based GIF
+if "Very Happy" in mood:
+    st.image("https://media.giphy.com/media/l0HlT5gLspHWhQWDu/giphy.gif", caption="Feeling Awesome!")
+elif "Sad" in mood:
+    st.image("https://media.giphy.com/media/l0MYRzcWPdGQKjJri/giphy.gif", caption="It's okay to feel sad 💙")
+elif "Angry" in mood:
+    st.image("https://media.giphy.com/media/QBDfR1EC88XfK/giphy.gif", caption="Deep breaths 😤")
+
+# File path
+FILE_PATH = "mood_log.xlsx"
+
+# Save button
+if st.button("💾 Save Entry"):
+    new_data = {
+        "Date": [selected_date],
+        "Mood": [mood],
+        "Mood Rating": [emoji_rating],
+        "Journal": [journal],
+        "Timestamp": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
     }
-    df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-    return df
 
-# ======================== #
-#     UI + MAIN LOGIC      #
-# ======================== #
+    new_df = pd.DataFrame(new_data)
 
-def show_statistics(df):
-    st.markdown("### 📊 Mood Summary")
-    if df.empty:
-        st.info("No data available to show statistics.")
-        return
-
-    mood_counts = df["Mood"].value_counts()
-    most_common = mood_counts.idxmax()
-    st.write("**Most frequent mood:**", most_common)
-    st.bar_chart(mood_counts)
-
-def main():
-    st.set_page_config(page_title="Mood Tracker", layout="centered")
-    st.title("🌞 Daily Mood Tracker with Emoji & Journal")
-
-    df = load_data()
-
-    # Mood Picker
-    mood_choice = st.radio("How are you feeling today?", list(MOODS.keys()))
-    selected_mood = MOODS[mood_choice]
-
-    # Journal Entry
-    journal_text = st.text_area("Write about your day (optional):")
-
-    # Entry Handling
-    if already_logged_today(df):
-        st.warning("You've already submitted your mood today.")
-    elif st.button("Save Today’s Entry"):
-        df = add_new_entry(df, selected_mood, journal_text)
-        save_data(df)
-        st.success("Your entry has been saved!")
-
-    # Show Mood History
-    st.markdown("### 📅 Your Mood Journal")
-    if not df.empty:
-        st.dataframe(df.sort_values("Date", ascending=False))
+    if os.path.exists(FILE_PATH):
+        existing_df = pd.read_excel(FILE_PATH)
+        updated_df = pd.concat([existing_df, new_df], ignore_index=True)
     else:
-        st.info("No entries found yet.")
+        updated_df = new_df
 
-    # Show Stats
-    show_statistics(df)
+    updated_df.to_excel(FILE_PATH, index=False)
+    st.success("✅ Mood entry saved successfully!")
 
-if __name__ == "__main__":
-    main()
+# Mood Trend Chart
+if os.path.exists(FILE_PATH):
+    df = pd.read_excel(FILE_PATH)
+    st.subheader("📈 Your Mood Over Time")
+    st.line_chart(df["Mood Rating"])
+
+# About section
+st.markdown("---")
+st.markdown("🔍 *This app helps track your daily emotions and journaling habits. Built with 💚 using Streamlit.*")
